@@ -13,6 +13,7 @@ import com.stripe.android.core.strings.resolvableString
 import com.stripe.android.core.utils.FeatureFlags
 import com.stripe.android.core.utils.UserFacingLogger
 import com.stripe.android.googlepaylauncher.GooglePayEnvironment
+import com.stripe.android.googlepaylauncher.GooglePayPaymentDataUpdateCallback
 import com.stripe.android.googlepaylauncher.GooglePayPaymentMethodLauncher
 import com.stripe.android.googlepaylauncher.GooglePayPaymentMethodLauncherContractV2
 import com.stripe.android.googlepaylauncher.InternalGooglePayPaymentMethodLauncher
@@ -776,11 +777,15 @@ class GooglePayConfirmationDefinitionTest {
             RecordingInternalGooglePayPaymentMethodLauncherFactory.noOp(launcher = mock()),
         userFacingLogger: UserFacingLogger = FakeUserFacingLogger(),
         context: Context = ApplicationProvider.getApplicationContext(),
+        instanceId: String = "instanceId",
+        onPaymentDataChangedCallback: GooglePayPaymentDataUpdateCallback? = null,
     ): GooglePayConfirmationDefinition {
         return GooglePayConfirmationDefinition(
+            instanceId = instanceId,
             context = context,
             googlePayPaymentMethodLauncherFactory = googlePayPaymentMethodLauncherFactory,
             userFacingLogger = userFacingLogger,
+            onPaymentDataChangedCallback = onPaymentDataChangedCallback,
         )
     }
 
