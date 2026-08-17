@@ -104,6 +104,7 @@ import javax.inject.Singleton
         CoroutineContextModule::class,
         ElementsSessionClientParamsModule::class,
         StripeRepositoryModule::class,
+        CheckoutGooglePayModule::class,
         GooglePayLauncherModule::class,
         TapToAddConnectionStarterModule::class,
         TapToAddConnectionModule::class,

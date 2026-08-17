@@ -13,6 +13,10 @@ internal object GooglePayDisplayItemsFactory {
         val response = (paymentMethodMetadata.integrationMetadata as? IntegrationMetadata.CheckoutSession)
             ?.checkoutSessionResponse ?: return emptyList()
 
+        return create(response)
+    }
+
+    fun create(response: CheckoutSessionResponse): List<GooglePayDisplayItem> {
         val items = mutableListOf<GooglePayDisplayItem>()
 
         items += response.lineItems.map { it.asDisplayItem() }
