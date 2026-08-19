@@ -991,10 +991,11 @@ class InputAddressViewModelTest {
         return InputAddressViewModel(
             AddressElementActivityContract.Args(
                 publishableKey = "pk_123",
-                config = AddressLauncher.Configuration.Builder()
-                    .googlePlacesApiKey(googlePlacesApiKey)
-                    .autocompleteCountries(autocompleteCountries)
-                    .build(),
+                config = AddressLauncher.Configuration(
+                    googlePlacesApiKey = googlePlacesApiKey,
+                    autocompleteCountries = autocompleteCountries,
+                    billingAddress = null,
+                ),
             ),
             navigator,
             eventReporter,

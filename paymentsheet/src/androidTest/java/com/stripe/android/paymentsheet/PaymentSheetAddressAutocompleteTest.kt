@@ -7,7 +7,6 @@ import com.stripe.android.networktesting.RequestMatchers.method
 import com.stripe.android.networktesting.RequestMatchers.path
 import com.stripe.android.networktesting.elementsSession
 import com.stripe.android.networktesting.testBodyFromFile
-import com.stripe.android.paymentelement.AddressAutocompletePreview
 import com.stripe.android.paymentsheet.utils.PlacesClientProxyTestRule
 import com.stripe.android.paymentsheet.utils.TestRules
 import com.stripe.android.paymentsheet.utils.assertCompleted
@@ -19,7 +18,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@OptIn(AddressAutocompletePreview::class)
 @RunWith(TestParameterInjector::class)
 class PaymentSheetAddressAutocompleteTest {
     private val placesClientProxyTestRule = PlacesClientProxyTestRule()
@@ -46,15 +44,15 @@ class PaymentSheetAddressAutocompleteTest {
         context.presentPaymentSheet {
             presentWithPaymentIntent(
                 paymentIntentClientSecret = "pi_123_secret_123",
-                configuration = PaymentSheet.Configuration.Builder(merchantDisplayName = "Example, Inc.")
-                    .billingDetailsCollectionConfiguration(
+                configuration = PaymentSheet.Configuration(
+                    merchantDisplayName = "Example, Inc.",
+                    billingDetailsCollectionConfiguration =
                         PaymentSheet.BillingDetailsCollectionConfiguration(
                             address = PaymentSheet.BillingDetailsCollectionConfiguration.AddressCollectionMode.Full,
                             attachDefaultsToPaymentMethod = true,
                         ),
-                    )
-                    .googlePlacesApiKey("gp_123")
-                    .build(),
+                    googlePlacesApiKey = "gp_123",
+                ),
             )
         }
 
@@ -82,26 +80,24 @@ class PaymentSheetAddressAutocompleteTest {
         context.presentPaymentSheet {
             presentWithPaymentIntent(
                 paymentIntentClientSecret = "pi_123_secret_123",
-                configuration = PaymentSheet.Configuration.Builder(merchantDisplayName = "Example, Inc.")
-                    .billingDetailsCollectionConfiguration(
+                configuration = PaymentSheet.Configuration(
+                    merchantDisplayName = "Example, Inc.",
+                    billingDetailsCollectionConfiguration =
                         PaymentSheet.BillingDetailsCollectionConfiguration(
                             address = PaymentSheet.BillingDetailsCollectionConfiguration.AddressCollectionMode.Full,
                             attachDefaultsToPaymentMethod = true,
                         ),
-                    )
-                    .defaultBillingDetails(
-                        PaymentSheet.BillingDetails(
-                            address = PaymentSheet.Address(
-                                line1 = "123 Coffee Street",
-                                city = "Chicago",
-                                state = "IL",
-                                country = "US",
-                                postalCode = "83985"
-                            )
+                    defaultBillingDetails = PaymentSheet.BillingDetails(
+                        address = PaymentSheet.Address(
+                            line1 = "123 Coffee Street",
+                            city = "Chicago",
+                            state = "IL",
+                            country = "US",
+                            postalCode = "83985"
                         )
-                    )
-                    .googlePlacesApiKey("gp_123")
-                    .build(),
+                    ),
+                    googlePlacesApiKey = "gp_123",
+                ),
             )
         }
 
