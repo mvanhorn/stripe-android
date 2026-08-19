@@ -14,6 +14,7 @@ import com.stripe.android.model.PaymentMethodFixtures
 import com.stripe.android.model.PaymentMethodMessageLearnMore
 import com.stripe.android.model.PaymentMethodMessagePromotion
 import com.stripe.android.paymentelement.CheckoutSessionPreview
+import com.stripe.android.paymentelement.confirmation.FakeConfirmationHandler
 import com.stripe.android.paymentelement.embedded.DefaultEmbeddedSelectionHolder
 import com.stripe.android.paymentelement.embedded.EmbeddedActivityArgs
 import com.stripe.android.paymentelement.embedded.EmbeddedActivityResult
@@ -30,9 +31,11 @@ import com.stripe.android.paymentsheet.DefaultCustomerStateHolder
 import com.stripe.android.paymentsheet.PaymentSheetFixtures
 import com.stripe.android.paymentsheet.createCustomerState
 import com.stripe.android.paymentsheet.model.PaymentSelection
+import com.stripe.android.paymentsheet.repositories.CheckoutSessionResponseFactory
 import com.stripe.android.testing.DummyActivityResultCaller
 import com.stripe.android.testing.DummyActivityResultCaller.RegisterCall
 import com.stripe.android.testing.FakeErrorReporter
+import com.stripe.android.testing.FakeLogger
 import com.stripe.android.testing.PaymentConfigurationTestRule
 import com.stripe.android.testing.asCallbackFor
 import com.stripe.android.uicore.utils.stateFlowOf
@@ -207,6 +210,52 @@ internal class CheckoutSheetLauncherTest {
         assertThat(selectionHolder.temporarySelection.value).isNull()
         assertThat(selectionHolder.selection.value).isEqualTo(PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION)
         assertThat(customerStateHolder.customer.value).isEqualTo(customerState)
+    }
+
+    @Test
+    fun `formActivityLauncher refreshes checkout session from complete result`() = testScenario {
+        val response = CheckoutSessionResponseFactory.create()
+        sessionRefresher.enqueueRefreshAction {}
+        val result = EmbeddedActivityResult.Complete(
+            previousNewSelections = Bundle(),
+            selection = PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION,
+            hasBeenConfirmed = false,
+            customerState = null,
+            checkoutSessionResponse = response,
+            shouldInvokeSelectionCallback = false,
+            launchMode = EmbeddedLaunchMode.Form(
+                selectedPaymentMethodCode = "card",
+            ),
+        )
+        val callback = registerCall.callback.asCallbackFor<EmbeddedActivityResult>()
+
+        callback.onActivityResult(result)
+        assertThat(selectionHolder.selection.value).isEqualTo(PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION)
+        assertThat(sheetStateHolder.sheetIsOpen).isFalse()
+        runCurrent()
+
+        assertThat(awaitRefreshCall()).isEqualTo(FakeCheckoutSessionRefresher.Call.Commit(response))
+    }
+
+    @Test
+    fun `formActivityLauncher does not refresh checkout session when complete result has no response`() = testScenario {
+        val result = EmbeddedActivityResult.Complete(
+            previousNewSelections = Bundle(),
+            selection = PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION,
+            hasBeenConfirmed = false,
+            customerState = null,
+            checkoutSessionResponse = null,
+            shouldInvokeSelectionCallback = false,
+            launchMode = EmbeddedLaunchMode.Form(
+                selectedPaymentMethodCode = "card",
+            ),
+        )
+        val callback = registerCall.callback.asCallbackFor<EmbeddedActivityResult>()
+
+        callback.onActivityResult(result)
+        runCurrent()
+
+        expectNoRefreshCalls()
     }
 
     @Test
@@ -499,6 +548,33 @@ internal class CheckoutSheetLauncherTest {
     }
 
     @Test
+    fun `paymentOptionsResult contains checkout session refresh failure`() = testScenario {
+        val response = CheckoutSessionResponseFactory.create()
+        val expectedError = IllegalStateException("Refresh failed")
+        sessionRefresher.enqueueRefreshAction { throw expectedError }
+        val result = EmbeddedActivityResult.Complete(
+            previousNewSelections = Bundle(),
+            customerState = null,
+            selection = PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION,
+            hasBeenConfirmed = false,
+            checkoutSessionResponse = response,
+            shouldInvokeSelectionCallback = false,
+            launchMode = EmbeddedLaunchMode.PaymentOptions,
+        )
+        val callback = registerCall.callback.asCallbackFor<EmbeddedActivityResult>()
+
+        callback.onActivityResult(result)
+        runCurrent()
+
+        assertThat(awaitRefreshCall()).isEqualTo(FakeCheckoutSessionRefresher.Call.Commit(response))
+        assertThat(selectionHolder.selection.value).isEqualTo(PaymentMethodFixtures.CASHAPP_PAYMENT_SELECTION)
+        assertThat(logger.errorLogs).containsExactly(
+            "Failed to refresh the checkout session after the sheet closed." to expectedError
+        )
+        assertThat(operationCoordinator.isUpdating.value).isFalse()
+    }
+
+    @Test
     fun `paymentOptionsResult callback updates customer state on cancelled result`() = testScenario {
         sheetStateHolder.sheetIsOpen = true
         val customerState = PaymentSheetFixtures.EMPTY_CUSTOMER_STATE
@@ -577,9 +653,11 @@ internal class CheckoutSheetLauncherTest {
         assertThat(sheetStateHolder.sheetIsOpen).isTrue()
     }
 
+    @Suppress("LongMethod")
     private fun testScenario(
         block: suspend Scenario.() -> Unit
     ) = runTest {
+        val testScope = this
         val lifecycleOwner = TestLifecycleOwner()
         val savedStateHandle = SavedStateHandle()
         val selectionHolder = DefaultEmbeddedSelectionHolder(savedStateHandle)
@@ -592,6 +670,16 @@ internal class CheckoutSheetLauncherTest {
         )
         val sheetStateHolder = SheetStateHolder(savedStateHandle)
         val errorReporter = FakeErrorReporter()
+        val sessionRefresher = FakeCheckoutSessionRefresher()
+        val logger = FakeLogger()
+        val confirmationHandler = FakeConfirmationHandler()
+        val operationCoordinator = CheckoutOperationCoordinator(
+            confirmationHandler = confirmationHandler,
+            sheetStateHolder = sheetStateHolder,
+            sessionRefresher = sessionRefresher,
+            logger = logger,
+            resultCallback = CheckoutController.ResultCallback {},
+        )
 
         DummyActivityResultCaller.test {
             val sheetLauncher = CheckoutSheetLauncher(
@@ -601,6 +689,10 @@ internal class CheckoutSheetLauncherTest {
                 customerStateHolder = customerStateHolder,
                 sheetStateHolder = sheetStateHolder,
                 errorReporter = errorReporter,
+                sessionRefresher = sessionRefresher,
+                operationCoordinator = operationCoordinator,
+                logger = logger,
+                coroutineScope = testScope,
                 statusBarColor = null,
                 paymentElementCallbackIdentifier = CALLBACK_IDENTIFIER,
             )
@@ -620,8 +712,15 @@ internal class CheckoutSheetLauncherTest {
                 sheetLauncher = sheetLauncher,
                 sheetStateHolder = sheetStateHolder,
                 errorReporter = errorReporter,
+                sessionRefresher = sessionRefresher,
+                logger = logger,
+                operationCoordinator = operationCoordinator,
+                runCurrent = testScheduler::runCurrent,
             ).block()
         }
+
+        confirmationHandler.validate()
+        sessionRefresher.ensureAllEventsConsumed()
     }
 
     private class Scenario(
@@ -634,7 +733,23 @@ internal class CheckoutSheetLauncherTest {
         val sheetLauncher: EmbeddedSheetLauncher,
         val sheetStateHolder: SheetStateHolder,
         val errorReporter: FakeErrorReporter,
+        val sessionRefresher: FakeCheckoutSessionRefresher,
+        val logger: FakeLogger,
+        val operationCoordinator: CheckoutOperationCoordinator,
+        private val runCurrent: () -> Unit,
     ) {
+        fun runCurrent() {
+            runCurrent.invoke()
+        }
+
+        suspend fun awaitRefreshCall(): FakeCheckoutSessionRefresher.Call {
+            return sessionRefresher.calls.awaitItem()
+        }
+
+        fun expectNoRefreshCalls() {
+            sessionRefresher.calls.expectNoEvents()
+        }
+
         suspend fun launchForm(code: String) {
             sheetLauncher.launchForm(
                 code = code,
