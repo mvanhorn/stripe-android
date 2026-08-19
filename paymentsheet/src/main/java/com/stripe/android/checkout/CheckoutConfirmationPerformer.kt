@@ -5,6 +5,7 @@ import com.stripe.android.paymentelement.confirmation.ConfirmationHandler
 import com.stripe.android.paymentelement.confirmation.gpay.GooglePayBillingEmailOverrideProvider
 import com.stripe.android.paymentelement.confirmation.toConfirmationOption
 import com.stripe.android.payments.core.injection.STATUS_BAR_COLOR
+import com.stripe.android.paymentsheet.PaymentSheet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -34,6 +35,13 @@ internal class CheckoutConfirmationPerformer @Inject constructor(
     private fun confirmationArgs(): ConfirmationHandler.Args? {
         val state = stateHolder.state ?: return null
         val configuration = state.commonConfiguration
+        check(
+            state.collectedDetails.resolveEmail(state.checkoutSessionResponse) != null ||
+                configuration.billingDetailsCollectionConfiguration.email !=
+                PaymentSheet.BillingDetailsCollectionConfiguration.CollectionMode.Never
+        ) {
+            "Cannot confirm a Checkout Session without an email when email collection is disabled."
+        }
         val confirmationOption = state.paymentSelection?.toConfirmationOption(
             configuration = configuration,
             linkConfiguration = state.paymentMethodMetadata.linkState?.configuration,

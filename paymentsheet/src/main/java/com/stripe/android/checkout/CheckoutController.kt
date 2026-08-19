@@ -117,13 +117,6 @@ class CheckoutController @Inject internal constructor(
                     response
                 }
             }.mapCatching { response ->
-                val defaultEmail = configurationState.defaults.email
-                if (defaultEmail != null) {
-                    checkoutSessionRepository.updateEmail(sessionId, defaultEmail).getOrThrow()
-                } else {
-                    response
-                }
-            }.mapCatching { response ->
                 checkoutStateLoader.loadInitial(
                     configuration = configurationState,
                     checkoutSessionResponse = response,
@@ -185,8 +178,15 @@ class CheckoutController @Inject internal constructor(
      */
     suspend fun updateEmail(
         email: String?,
-    ): kotlin.Result<Unit> = withCheckoutState { sessionId ->
-        checkoutSessionRepository.updateEmail(sessionId, email?.trim().orEmpty())
+    ): kotlin.Result<Unit> {
+        val trimmed = email?.trim()?.takeIf { it.isNotEmpty() }
+        return withCheckoutState(
+            additionalStateMutations = {
+                copy(collectedDetails = collectedDetails.copy(email = trimmed))
+            },
+        ) {
+            kotlin.Result.success(checkoutSessionResponse)
+        }
     }
 
     internal suspend fun updateBillingAddress(
