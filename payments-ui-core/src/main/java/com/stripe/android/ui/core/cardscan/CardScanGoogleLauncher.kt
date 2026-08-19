@@ -9,6 +9,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.core.app.ActivityOptionsCompat
@@ -29,7 +30,7 @@ internal class CardScanGoogleLauncher @VisibleForTesting constructor(
     override val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
 
     @VisibleForTesting
-    lateinit var activityLauncher: ActivityResultLauncher<IntentSenderRequest>
+    var activityLauncher: ActivityResultLauncher<IntentSenderRequest>? = null
 
     init {
         paymentCardRecognitionClient.fetchIntent(
@@ -58,8 +59,13 @@ internal class CardScanGoogleLauncher @VisibleForTesting constructor(
                 eventsReporter.onCardScanFailed(implementation, e)
             },
             onSuccess = { intentSenderRequest ->
-                eventsReporter.onCardScanStarted("google_pay")
-                activityLauncher.launch(intentSenderRequest, options)
+                val activityLauncher = activityLauncher
+                if (activityLauncher == null) {
+                    _isLaunching = false
+                } else {
+                    eventsReporter.onCardScanStarted(implementation)
+                    activityLauncher.launch(intentSenderRequest, options)
+                }
             }
         )
     }
@@ -124,9 +130,13 @@ internal class CardScanGoogleLauncher @VisibleForTesting constructor(
                 launcher._isLaunching = false
                 onResult(launcher.parseActivityResult(result))
             }
-            return remember(activityLauncher) {
-                launcher.apply { this.activityLauncher = activityLauncher }
+            DisposableEffect(launcher, activityLauncher) {
+                launcher.activityLauncher = activityLauncher
+                onDispose {
+                    launcher.activityLauncher = null
+                }
             }
+            return launcher
         }
     }
 }
