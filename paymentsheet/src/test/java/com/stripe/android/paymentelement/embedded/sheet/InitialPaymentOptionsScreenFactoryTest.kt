@@ -160,6 +160,13 @@ internal class InitialPaymentOptionsScreenFactoryTest {
         assertThat(screens.first()).isInstanceOf<EmbeddedNavigator.Screen.VerticalPaymentOptions>()
     }
 
+    @Test
+    fun `continue click delegates to continue handler`() = testScenario {
+        factory.onContinueClick()
+
+        assertThat(continueHandler.onContinueCalls.awaitItem()).isEqualTo(Unit)
+    }
+
     @Suppress("LongMethod")
     private fun testScenario(
         isGooglePayReady: Boolean = true,
@@ -180,6 +187,7 @@ internal class InitialPaymentOptionsScreenFactoryTest {
         val eventReporter = FakeEventReporter()
         val testScope = TestScope(UnconfinedTestDispatcher())
         val sheetActivityStateHolder = FakeSheetActivityStateHolder()
+        val continueHandler = FakeSheetActivityContinueHandler()
         val formHelperFactory = EmbeddedFormHelperFactory(
             linkConfigurationCoordinator = FakeLinkConfigurationCoordinator(),
             cardAccountRangeRepositoryFactory = NullCardAccountRangeRepositoryFactory,
@@ -254,6 +262,7 @@ internal class InitialPaymentOptionsScreenFactoryTest {
             formScreenFactory = formScreenFactory,
             linkAccountHolder = LinkAccountHolder(SavedStateHandle()),
             addPaymentMethodInteractorFactory = addPaymentMethodInteractorFactory,
+            continueHandler = continueHandler,
         )
 
         Scenario(
@@ -262,8 +271,10 @@ internal class InitialPaymentOptionsScreenFactoryTest {
             customerStateHolder = customerStateHolder,
             navigator = navigator,
             sheetActivityStateHolder = sheetActivityStateHolder,
+            continueHandler = continueHandler,
         ).block()
         eventReporter.validate()
+        continueHandler.validate()
     }
 
     private class Scenario(
@@ -272,6 +283,7 @@ internal class InitialPaymentOptionsScreenFactoryTest {
         val customerStateHolder: CustomerStateHolder,
         val navigator: EmbeddedNavigator,
         val sheetActivityStateHolder: FakeSheetActivityStateHolder,
+        val continueHandler: FakeSheetActivityContinueHandler,
     )
 }
 
