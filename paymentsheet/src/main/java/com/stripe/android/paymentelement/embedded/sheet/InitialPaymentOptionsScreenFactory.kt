@@ -100,6 +100,7 @@ internal class InitialPaymentOptionsScreenFactory @Inject constructor(
                 previousNewSelections = selectionHolder.previousNewSelections,
                 hasBeenConfirmed = false,
                 customerState = customerStateHolder.customer.value,
+                checkoutSessionResponse = null,
                 shouldInvokeSelectionCallback = false,
                 launchMode = EmbeddedLaunchMode.PaymentOptions,
             )

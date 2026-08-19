@@ -53,6 +53,7 @@ internal class DefaultSheetActivityConfirmationHelper @Inject constructor(
                             previousNewSelections = selectionHolder.previousNewSelections,
                             hasBeenConfirmed = false,
                             customerState = customerStateHolder.customer.value,
+                            checkoutSessionResponse = null,
                             shouldInvokeSelectionCallback = false,
                             launchMode = launchMode,
                         )
