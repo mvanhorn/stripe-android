@@ -10,6 +10,7 @@ NEXT_VERSION_BUMP: MINOR
 
 ### AddressElement
 * [CHANGED] Use Stripe-hosted address autocomplete by default.
+* [FIXED] Fixed a crash when SDK activities finish on devices missing the expected activity transition API.
 
 ## 23.17.1 - 2026-08-31
 

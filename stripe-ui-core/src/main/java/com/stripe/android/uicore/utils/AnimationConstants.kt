@@ -1,7 +1,6 @@
 package com.stripe.android.uicore.utils
 
 import android.app.Activity
-import android.os.Build
 import androidx.annotation.AnimRes
 import androidx.annotation.RestrictTo
 import com.stripe.android.uicore.R
@@ -22,10 +21,6 @@ fun Activity.fadeOut(
     fadeIn: Int = FADE_IN,
     fadeOut: Int = FADE_OUT
 ) {
-    if (Build.VERSION.SDK_INT >= 34) {
-        overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, fadeIn, fadeOut)
-    } else {
-        @Suppress("DEPRECATION")
-        overridePendingTransition(fadeIn, fadeOut)
-    }
+    @Suppress("DEPRECATION")
+    overridePendingTransition(fadeIn, fadeOut)
 }
